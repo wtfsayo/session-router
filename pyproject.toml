@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "session-router"
+version = "0.1.0"
+description = "Session-aware, cache-aware router between local and cloud LLMs with PII gating"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[project.scripts]
+session-router = "sessionrouter.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

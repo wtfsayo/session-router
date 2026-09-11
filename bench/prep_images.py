@@ -10,7 +10,9 @@ This script, for each held-out instance:
   3. pulls --platform linux/amd64 and retags as the local env+instance keys
      so build_instance_image sees both present and skips building.
 
-Run with /tmp/trbenv/bin/python.
+Needs a venv with TwinRouterBench installed (`pip install -e trb[dynamic]`);
+point TRB_REPO at the checkout. Run as: TRB_REPO=/path/to/trb python
+bench/prep_images.py [N]
 """
 from __future__ import annotations
 
@@ -20,14 +22,17 @@ import subprocess
 import sys
 import urllib.request
 
+import os
+
 platform.machine = lambda: "x86_64"
-sys.path.insert(0, "/tmp/trb")
+TRB = os.environ.get("TRB_REPO", "/tmp/trb")  # TwinRouterBench checkout
+sys.path.insert(0, TRB)
 
 from swerouter.harness.container_runner import (  # noqa: E402
     load_dataset_instance, make_test_spec_for_instance)
 
 IDS = [l.strip() for l in
-       open("/tmp/trb/data/dynamic/dynamic_heldout100_ids.txt") if l.strip()]
+       open(f"{TRB}/data/dynamic/dynamic_heldout100_ids.txt") if l.strip()]
 
 
 def hub_name(repo: str, suffix: str) -> str | None:

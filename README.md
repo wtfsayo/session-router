@@ -49,11 +49,31 @@ bring your own labels by training on your traffic.
 
 ## Benchmarks
 
+Static track evaluated against **TwinRouterBench**
+([Amorph/TwinRouterBench](https://huggingface.co/datasets/Amorph/TwinRouterBench),
+official `compute_v2_scores` — RowPass / RowExact / TrajPass / CostSave,
+session-level 70/30 split, 290 held-out steps):
+
+| Router | RowPass | RowExact | TrajPass | CostSave | Combined |
+|---|---|---|---|---|---|
+| trained head → τ-satisfice (this repo) | 96.6 | 78.3 | 92.1 | 57.0 | **81.1** |
+| real `Router` w/ session policy | 96.6 | 77.6 | 92.1 | 56.1 | **80.6** |
+| paper best (SR-KNN, *in-sample* UB) | 91.9 | 78.8 | 84.7 | 56.2 | 77.9 |
+| always-low / always-high | 74.1 / 100 | 74.1 / 16.2 | 59.7 / 100 | 55.3 / 0 | 65.8 / 54.1 |
+
+`bench/hillclimb.py` sweeps (features, head, decision rule, τ) against the
+official scorer and logs every run to `bench/experiments.sqlite`.
+`bench/dynamic_router.py` adapts the trained scorer to the live
+mini-SWE-agent track (`miniswerouterbench run --router-import ...`);
+validated end-to-end, not yet run at the 100-case scale.
+
 ```bash
+TRB_REPO=/path/to/TwinRouterBench \
 uv run --with pandas --with pyarrow --with huggingface_hub \
-    --with scikit-learn python bench/twinrouter.py   # session-level routing acc
+    --with scikit-learn --with tiktoken --with scipy \
+    python bench/twinrouter.py                       # 4-tier official metrics
 uv run --with pandas --with scikit-learn \
-    python bench/run_bench.py                       # RouterBench + session sim
+    python bench/run_bench.py                        # RouterBench + session sim
 ```
 
 ## Privacy notes

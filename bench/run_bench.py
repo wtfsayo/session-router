@@ -228,11 +228,14 @@ def part_b(test, outcomes, scorer):
 
 
 def main():
+    import glob
+    default_pkl = next(iter(glob.glob(os.path.expanduser(
+        "~/.cache/huggingface/hub/datasets--withmartian--routerbench/"
+        "snapshots/*/routerbench_0shot.pkl"))), None)
     ap = argparse.ArgumentParser()
-    ap.add_argument("--pkl", default="/Users/studio/.cache/huggingface/hub/"
-                    "datasets--withmartian--routerbench/snapshots/"
-                    "784021482c3f320c6619ed4b3bb3b41a21424fcb/"
-                    "routerbench_0shot.pkl")
+    ap.add_argument("--pkl", default=default_pkl,
+                    help="path to routerbench_0shot.pkl (auto-detected from "
+                    "the HF cache; otherwise pass explicitly)")
     ap.add_argument("--n", type=int, default=8000)
     ap.add_argument("--skip-a", action="store_true")
     ap.add_argument("--skip-b", action="store_true")

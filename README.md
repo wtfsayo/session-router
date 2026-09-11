@@ -1,22 +1,34 @@
 # session-router
 
-Session-aware, privacy-first router between a local small LLM and cloud
-LLMs. Routes each turn to local or cloud while balancing quality, cost,
-latency, prompt-cache reuse, and PII — and stays sticky within a session
-so model switches don't keep busting warm caches.
+**Session-aware LLM router: route each turn between a local small LLM
+(Ollama / llama.cpp) and cloud LLMs (OpenAI / Anthropic / OpenRouter) —
+balancing quality, cost, latency, prompt-cache reuse, and PII privacy.**
 
-## Design in one paragraph
+An OpenAI-compatible inference gateway that decides, per turn, whether the
+cheap local model suffices or the request must escalate — and stays sticky
+within a session so model switches don't keep busting warm KV caches.
 
-Per turn: scan for PII (strict tiers never leave the device; redactable
-PII is replaced with session-stable placeholders before any cloud call and
-restored on return) → estimate `P(local suffices)` → apply the session
-policy (hard locks for tool loops, idle/drift reset boundaries, sticky
-escalation, margin or work-function decision rule priced with cache
-warmth) → local-first generate → composite acceptance gate (validators +
-answer-span logprob confidence) → escalate to cloud on rejection, with
-transcript handoff that only pays the divergence prefill.
+Built for agentic / multi-turn workloads where per-request routers lose:
+tool loops, long sessions, prompt-caching economics, and privacy gating.
 
-## Install / run
+- **4-tier model ladder** — local → cloud tiers, priced per model
+  (incl. cache read/write pricing), not just a binary cheap/expensive split
+- **PII gate before any egress** — STRICT turns never leave the device;
+  redactable PII is replaced with session-stable placeholders and restored
+  locally on return
+- **Cache-aware switching costs** — prompt-cache TTL, warm-token estimates,
+  and re-prefill cost are priced into every route decision
+- **Decision rules**: greedy margin, work-function (MTS), or satisficing
+  (`P(suffices) ≥ τ`) with sticky escalation, idle/drift resets, and
+  tool-loop hard locks
+- **Cascade acceptance gate** — validators + answer-span logprob
+  confidence; escalate to a stronger model on rejection, paying only the
+  divergence prefill
+- **Drop-in proxy** — OpenAI-compatible `POST /v1/chat/completions`;
+  sessions via `metadata.session_id` or `X-Session-Id`
+- **Zero dependencies** — core is stdlib-only Python
+
+## Quickstart
 
 ```bash
 uv run --with-editable . session-router demo          # simulated session
@@ -26,9 +38,18 @@ uv run --with-editable . session-router chat "what is 2+2?"
 uv run --with-editable . --with pytest pytest tests   # test suite
 ```
 
-Sessions: pass `metadata.session_id` (or `X-Session-Id`) on
-`POST /v1/chat/completions`. Responses include a `_router` diagnostics
-block (chosen model, reason, privacy tier, scores, cache estimate).
+Responses include a `_router` diagnostics block (chosen model, reason,
+privacy tier, candidate scores, cache estimate) — shadow-evaluate routing
+decisions without changing behavior.
+
+## How it decides
+
+Per turn: scan for PII → estimate per-tier sufficiency
+`P(tier t suffices)` → apply session policy (hard locks for outstanding
+tool calls and non-portable provider state; idle + topic-drift reset
+boundaries; sticky escalation; `agentic:hold` on mid-loop observation
+steps) → pick lowest sufficient tier (satisfice), min cost+switch
+(margin), or work-function state (WFA) → generate → accept or escalate.
 
 ## Trained scorer
 
@@ -76,6 +97,13 @@ uv run --with pandas --with scikit-learn \
     python bench/run_bench.py                        # RouterBench + session sim
 ```
 
+## Backends
+
+Ollama (`keep_alive`, logprobs) · llama.cpp server (`id_slot`,
+`cache_prompt`, slot save/restore) · OpenAI-compatible
+(`prompt_cache_key`, `cached_tokens`) · Anthropic (`cache_control`
+breakpoints, read/write usage fields) · OpenRouter via OpenAI-compat.
+
 ## Privacy notes
 
 - The built-in detector is regex+Luhn heuristics (email, phone, SSN,
@@ -97,3 +125,7 @@ uv run --with pandas --with scikit-learn \
 - Gate logprob thresholds are placeholders; fit them on your local model.
 - `quality_weight` is a dollars-vs-quality scale knob: ~0.05 for
   ~$0.005-per-call clouds, lower for cheaper endpoints.
+
+## License
+
+MIT
